@@ -1,0 +1,59 @@
+name: test_task
+description: "Test task"
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  auto_route: ^11.1.0
+  bloc: ^9.2.1
+  cupertino_icons: ^1.0.8
+  cunning_document_scanner: ^2.8.0
+  drift: ^2.34.3 
+  drift_flutter: ^0.3.1
+  easy_localization: ^3.0.8
+  equatable: ^2.1.0
+  file_picker: ^11.0.2
+  flutter_bloc: ^9.1.1
+  image_picker: ^1.2.3
+  get_it: ^9.2.1
+  injectable: ^3.0.0
+  liquid_glass_widgets: ^0.29.2
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  pdf: ^3.13.0
+  pdfx: ^2.9.2
+  printing: ^5.14.2
+  share_plus: ^12.0.1
+  shared_preferences: ^2.5.5
+  flutter_svg: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  auto_route_generator: ^10.6.0
+  build_runner: 2.15.1
+  drift_dev: ^2.34.5
+  flutter_lints: ^6.0.0
+  injectable_generator: ^3.1.1
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/translations/
+    - assets/icons/
+    - assets/images/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
