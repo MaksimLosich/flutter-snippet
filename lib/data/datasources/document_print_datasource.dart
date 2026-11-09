@@ -10,15 +10,7 @@ abstract interface class DocumentPrintDataSource {
 @LazySingleton(as: DocumentPrintDataSource)
 final class PlatformDocumentPrintDataSource implements DocumentPrintDataSource {
   @override
-  Future<void> printPdfFile({
-    required String pdfPath,
-    required String name,
-  }) async {
-    await Printing.layoutPdf(
-      name: name,
-      onLayout: (_) {
-        return File(pdfPath).readAsBytes();
-      },
-    );
+  Future<void> printPdfFile({required String pdfPath, required String name}) async {
+    await Printing.layoutPdf(name: name, onLayout: (_) => File(pdfPath).readAsBytes());
   }
 }

@@ -1,207 +1,175 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart' as pdf;
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdfx/pdfx.dart' as pdfx;
-
-final class DocumentPreviewFiles {
-  const DocumentPreviewFiles({
-    required this.firstPreviewPath,
-    required this.lastPreviewPath,
-  });
-
-  final String firstPreviewPath;
-  final String? lastPreviewPath;
-}
+import 'package:test_task/data/models/preview_page.dart';
+import 'package:test_task/data/models/stored_document_path.dart';
 
 abstract interface class DocumentFileDataSource {
-  Future<String> copyPdfToStorage(String sourcePath);
+  Future<StoredDocumentPath> copyPdfToStorage(String sourceAbsolutePath);
 
-  Future<String> createPdfFromImages(List<String> imagePaths);
+  Future<StoredDocumentPath> writePdf(Uint8List pdfBytes);
 
-  Future<DocumentPreviewFiles> createPdfPreviews(String pdfPath);
+  Future<StoredDocumentPath> writePreview(
+    Uint8List jpegBytes, {
+    required StoredDocumentPath pdfPath,
+    required PreviewPage page,
+  });
 
-  Future<String> resolvePath(String storedPath);
+  Future<String> resolveStoredPath(StoredDocumentPath storedPath);
 
-  Future<void> deleteFiles(List<String?> storedPaths);
+  Future<void> deleteStoredFiles(Iterable<StoredDocumentPath> storedPaths);
 }
 
 @LazySingleton(as: DocumentFileDataSource)
 final class LocalDocumentFileDataSource implements DocumentFileDataSource {
-  static const _previewWidth = 600.0;
+  LocalDocumentFileDataSource();
+
   static const _documentsDirectoryName = 'documents';
   static const _previewsDirectoryName = 'document_previews';
+  static const _fallbackFileName = 'document';
+  static const _pdfExtension = '.pdf';
 
   @override
-  Future<String> copyPdfToStorage(String sourcePath) async {
-    final sourceFile = File(sourcePath);
-    final fileName = _uniqueFileName(
-      p.basenameWithoutExtension(sourcePath),
-      '.pdf',
+  Future<StoredDocumentPath> copyPdfToStorage(String sourceAbsolutePath) async {
+    if (!p.isAbsolute(sourceAbsolutePath)) {
+      throw ArgumentError.value(sourceAbsolutePath, 'sourceAbsolutePath');
+    }
+
+    final storedPath = _newStoredPath(
+      _documentsDirectoryName,
+      p.basenameWithoutExtension(sourceAbsolutePath),
+      _pdfExtension,
     );
-    final relativePath = p.join(_documentsDirectoryName, fileName);
-    final destination = File(await resolvePath(relativePath));
+    return _writeAtomically(storedPath, (temporaryFile) async {
+      await File(sourceAbsolutePath).copy(temporaryFile.path);
+    });
+  }
 
+  @override
+  Future<StoredDocumentPath> writePdf(Uint8List pdfBytes) {
+    final storedPath = _newStoredPath(_documentsDirectoryName, _fallbackFileName, _pdfExtension);
+    return _writeAtomically(storedPath, (temporaryFile) => temporaryFile.writeAsBytes(pdfBytes, flush: true));
+  }
+
+  @override
+  Future<StoredDocumentPath> writePreview(
+    Uint8List jpegBytes, {
+    required StoredDocumentPath pdfPath,
+    required PreviewPage page,
+  }) {
+    final storedPath = _newStoredPath(
+      _previewsDirectoryName,
+      '${p.basenameWithoutExtension(pdfPath.value)}_${page.name}',
+      '.jpg',
+    );
+    return _writeAtomically(storedPath, (temporaryFile) => temporaryFile.writeAsBytes(jpegBytes, flush: true));
+  }
+
+  @override
+  Future<String> resolveStoredPath(StoredDocumentPath storedPath) async {
+    final value = storedPath.value;
+    if (value.isEmpty) {
+      throw ArgumentError.value(value, 'storedPath');
+    }
+
+    final root = p.normalize(await _rootPath);
+    final String absolutePath;
+    if (p.isAbsolute(value)) {
+      final normalized = p.normalize(value);
+      absolutePath = _isManagedPath(root, normalized) ? normalized : _recoverLegacyAbsolutePath(root, normalized);
+    } else {
+      if (p.split(value).contains('..')) {
+        throw ArgumentError.value(value, 'storedPath');
+      }
+      absolutePath = p.normalize(p.join(root, value));
+    }
+
+    if (!_isManagedPath(root, absolutePath)) {
+      throw ArgumentError.value(value, 'storedPath');
+    }
+    return absolutePath;
+  }
+
+  @override
+  Future<void> deleteStoredFiles(Iterable<StoredDocumentPath> storedPaths) async {
+    final existingPaths = <String>{};
+    for (final storedPath in storedPaths) {
+      final absolutePath = await resolveStoredPath(storedPath);
+      if (await File(absolutePath).exists()) {
+        await _validateManagedParent(absolutePath);
+        existingPaths.add(absolutePath);
+      }
+    }
+
+    for (final absolutePath in existingPaths) {
+      await File(absolutePath).delete();
+    }
+  }
+
+  Future<StoredDocumentPath> _writeAtomically(
+    StoredDocumentPath storedPath,
+    Future<void> Function(File temporaryFile) write,
+  ) async {
+    final destination = File(await resolveStoredPath(storedPath));
     await destination.parent.create(recursive: true);
-    await sourceFile.copy(destination.path);
-    return relativePath;
-  }
-
-  @override
-  Future<String> createPdfFromImages(List<String> imagePaths) async {
-    final document = pw.Document();
-
-    for (final imagePath in imagePaths) {
-      final image = pw.MemoryImage(await File(imagePath).readAsBytes());
-      document.addPage(
-        pw.Page(
-          pageFormat: pdf.PdfPageFormat.a4,
-          build: (_) {
-            return pw.Center(child: pw.Image(image, fit: pw.BoxFit.contain));
-          },
-        ),
-      );
-    }
-
-    final fileName = _uniqueFileName('document', '.pdf');
-    final relativePath = p.join(_documentsDirectoryName, fileName);
-    final file = File(await resolvePath(relativePath));
-    await file.parent.create(recursive: true);
-    await file.writeAsBytes(await document.save(), flush: true);
-
-    return relativePath;
-  }
-
-  @override
-  Future<DocumentPreviewFiles> createPdfPreviews(String pdfPath) async {
-    final absolutePdfPath = await resolvePath(pdfPath);
-
-    final document = await pdfx.PdfDocument.openFile(absolutePdfPath);
+    await _validateManagedParent(destination.path);
+    final temporaryFile = File('${destination.path}.${_uniqueToken()}.tmp');
 
     try {
-      final firstPreviewPath = await _renderPagePreview(
-        document: document,
-        pageNumber: 1,
-        pdfPath: pdfPath,
-        suffix: 'first',
-      );
-
-      final lastPreviewPath = document.pagesCount > 1
-          ? await _renderPagePreview(
-              document: document,
-              pageNumber: document.pagesCount,
-              pdfPath: pdfPath,
-              suffix: 'last',
-            )
-          : null;
-
-      return DocumentPreviewFiles(
-        firstPreviewPath: firstPreviewPath,
-        lastPreviewPath: lastPreviewPath,
-      );
-    } finally {
-      await document.close();
-    }
-  }
-
-  @override
-  Future<String> resolvePath(String storedPath) async {
-    if (!p.isAbsolute(storedPath)) {
-      return p.join(await _applicationDocumentsPath, storedPath);
-    }
-
-    if (await File(storedPath).exists()) {
+      await write(temporaryFile);
+      await temporaryFile.rename(destination.path);
       return storedPath;
-    }
-
-    final recoveredPath = await _recoverMovedContainerPath(storedPath);
-    return recoveredPath ?? storedPath;
-  }
-
-  @override
-  Future<void> deleteFiles(List<String?> storedPaths) async {
-    for (final storedPath in storedPaths.whereType<String>()) {
-      final path = await resolvePath(storedPath);
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
+    } catch (_) {
+      if (await temporaryFile.exists()) {
+        await temporaryFile.delete();
       }
+      rethrow;
     }
   }
 
-  Future<String> _renderPagePreview({
-    required pdfx.PdfDocument document,
-    required int pageNumber,
-    required String pdfPath,
-    required String suffix,
-  }) async {
-    final page = await document.getPage(pageNumber);
-
-    try {
-      final scale = _previewWidth / math.max(page.width, 1);
-      final pageImage = await page.render(
-        width: _previewWidth,
-        height: page.height * scale,
-        format: pdfx.PdfPageImageFormat.jpeg,
-        backgroundColor: '#FFFFFF',
-        quality: 90,
-      );
-
-      if (pageImage == null) {
-        throw StateError('Could not render PDF preview');
-      }
-
-      final fileName = _uniqueFileName(
-        '${p.basenameWithoutExtension(pdfPath)}_$suffix',
-        '.jpg',
-      );
-      final relativePath = p.join(_previewsDirectoryName, fileName);
-      final file = File(await resolvePath(relativePath));
-      await file.parent.create(recursive: true);
-      await file.writeAsBytes(pageImage.bytes, flush: true);
-
-      return relativePath;
-    } finally {
-      await page.close();
+  Future<void> _validateManagedParent(String absolutePath) async {
+    final root = await Directory(await _rootPath).resolveSymbolicLinks();
+    final parent = await Directory(p.dirname(absolutePath)).resolveSymbolicLinks();
+    if (!p.isWithin(root, parent)) {
+      throw FileSystemException('Path leaves app storage', absolutePath);
     }
   }
 
-  Future<String> get _applicationDocumentsPath async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
+  Future<String> get _rootPath async {
+    final root = await getApplicationDocumentsDirectory();
+    return root.path;
   }
 
-  Future<String?> _recoverMovedContainerPath(String absolutePath) async {
-    final basename = p.basename(absolutePath);
-    final extension = p.extension(absolutePath).toLowerCase();
+  bool _isManagedPath(String root, String path) {
+    return p.isWithin(p.join(root, _documentsDirectoryName), path) ||
+        p.isWithin(p.join(root, _previewsDirectoryName), path);
+  }
+
+  String _recoverLegacyAbsolutePath(String root, String path) {
+    final extension = p.extension(path).toLowerCase();
     final directoryName = switch (extension) {
-      '.pdf' => _documentsDirectoryName,
+      _pdfExtension => _documentsDirectoryName,
       '.jpg' || '.jpeg' || '.png' => _previewsDirectoryName,
       _ => null,
     };
-
-    if (directoryName == null) {
-      return null;
+    if (directoryName == null || p.basename(p.dirname(path)) != directoryName) {
+      throw ArgumentError.value(path, 'storedPath');
     }
-
-    final candidate = p.join(
-      await _applicationDocumentsPath,
-      directoryName,
-      basename,
-    );
-    return await File(candidate).exists() ? candidate : null;
+    return p.join(root, directoryName, p.basename(path));
   }
 
-  String _uniqueFileName(String rawName, String extension) {
-    final safeName = rawName
-        .trim()
-        .replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_');
-    final name = safeName.isEmpty ? 'document' : safeName;
-    return '${DateTime.now().microsecondsSinceEpoch}_$name$extension';
+  StoredDocumentPath _newStoredPath(String directoryName, String rawName, String extension) {
+    final safeName = rawName.trim().replaceAll(RegExp(r'[^a-zA-Z0-9-]+'), '_');
+    final name = safeName.isEmpty ? _fallbackFileName : safeName;
+    return StoredDocumentPath(p.join(directoryName, '${_uniqueToken()}_$name$extension'));
+  }
+
+  String _uniqueToken() {
+    final random = math.Random.secure().nextInt(1 << 32).toRadixString(16);
+    return '${DateTime.now().microsecondsSinceEpoch}_$random';
   }
 }

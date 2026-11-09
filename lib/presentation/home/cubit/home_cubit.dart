@@ -3,6 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:test_task/core/error/failure.dart';
+import 'package:test_task/core/error/result.dart';
 import 'package:test_task/domain/entities/app_document.dart';
 import 'package:test_task/domain/usecases/delete_documents_usecase.dart';
 import 'package:test_task/domain/usecases/import_pdf_documents_usecase.dart';
@@ -13,6 +15,7 @@ import 'package:test_task/domain/usecases/share_documents_usecase.dart';
 import 'package:test_task/domain/usecases/toggle_document_signature_usecase.dart';
 import 'package:test_task/domain/usecases/watch_documents_usecase.dart';
 
+import '../models/document_filter.dart';
 import 'home_state.dart';
 
 @injectable
@@ -39,7 +42,7 @@ final class HomeCubit extends Cubit<HomeState> {
   final ShareDocumentsUseCase _shareDocumentsUseCase;
   final PrintDocumentUseCase _printDocumentUseCase;
 
-  StreamSubscription<List<AppDocument>>? _documentsSubscription;
+  StreamSubscription<Result<List<AppDocument>>>? _documentsSubscription;
 
   void showAddDocumentOverlay() {
     emit(
@@ -80,6 +83,10 @@ final class HomeCubit extends Cubit<HomeState> {
     emit(state.copyWith(searchQuery: query));
   }
 
+  void updateDocumentFilter(DocumentFilter filter) {
+    emit(state.copyWith(documentFilter: filter, documentContextMenuId: null, documentContextMenuAnchor: null));
+  }
+
   void enterSelectMode() {
     emit(
       state.copyWith(
@@ -99,28 +106,21 @@ final class HomeCubit extends Cubit<HomeState> {
   }
 
   void showDocumentContextMenu(int documentId, Offset anchor) {
-    if (state.isSelectMode) {
-      return;
+    if (!state.isSelectMode) {
+      emit(
+        state.copyWith(
+          documentContextMenuId: documentId,
+          documentContextMenuAnchor: anchor,
+          isAddDocumentOverlayVisible: false,
+          isSearchVisible: false,
+          searchQuery: '',
+        ),
+      );
     }
-
-    emit(
-      state.copyWith(
-        documentContextMenuId: documentId,
-        documentContextMenuAnchor: anchor,
-        isAddDocumentOverlayVisible: false,
-        isSearchVisible: false,
-        searchQuery: '',
-      ),
-    );
   }
 
   void hideDocumentContextMenu() {
-    emit(
-      state.copyWith(
-        documentContextMenuId: null,
-        documentContextMenuAnchor: null,
-      ),
-    );
+    emit(state.copyWith(documentContextMenuId: null, documentContextMenuAnchor: null));
   }
 
   void toggleDocumentSelection(int documentId) {
@@ -144,24 +144,20 @@ final class HomeCubit extends Cubit<HomeState> {
     emit(state.copyWith(selectedDocumentIds: selectedIds));
   }
 
-  Future<void> importFromFiles() {
-    return _runImport(() => _importPdfDocumentsUseCase());
+  Future<void> importFromFiles(int previewBackgroundColorArgb) {
+    return _runImport(() => _importPdfDocumentsUseCase(previewBackgroundColorArgb));
   }
 
-  Future<void> importFromPhotos() {
-    return _runImport(() => _importPhotoDocumentsUseCase());
+  Future<void> importFromPhotos(int previewBackgroundColorArgb) {
+    return _runImport(() => _importPhotoDocumentsUseCase(previewBackgroundColorArgb));
   }
 
-  Future<void> scanDocument() {
-    return _runImport(() => _scanDocumentUseCase());
+  Future<void> scanDocument(int previewBackgroundColorArgb) {
+    return _runImport(() => _scanDocumentUseCase(previewBackgroundColorArgb));
   }
 
   Future<void> toggleDocumentSignature(int documentId) async {
-    try {
-      await _toggleDocumentSignatureUseCase(documentId);
-    } catch (error) {
-      emit(state.copyWith(errorMessage: error.toString()));
-    }
+    await _runAction(() => _toggleDocumentSignatureUseCase(documentId));
   }
 
   Future<void> deleteSelectedDocuments() async {
@@ -173,106 +169,113 @@ final class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  Future<void> shareSelectedDocuments() {
+  Future<void> shareSelectedDocuments(Rect sharePositionOrigin) {
     return _runSelectionAction(() {
-      return _shareDocumentsUseCase(state.selectedDocumentIds);
+      return _shareDocumentsUseCase(state.selectedDocumentIds, sharePositionOrigin);
     });
   }
 
   Future<void> printContextDocument() async {
     final documentId = state.documentContextMenuId;
-    if (documentId == null) {
-      return;
-    }
-
-    final isPrinted = await _runContextAction(() {
-      return _printDocumentUseCase(documentId);
-    });
-    if (isPrinted) {
-      hideDocumentContextMenu();
+    if (documentId != null) {
+      final isPrinted = await _runAction(() {
+        return _printDocumentUseCase(documentId);
+      });
+      if (isPrinted) {
+        hideDocumentContextMenu();
+      }
     }
   }
 
-  Future<void> shareContextDocument() async {
+  Future<void> shareContextDocument(Rect sharePositionOrigin) async {
     final documentId = state.documentContextMenuId;
-    if (documentId == null) {
-      return;
-    }
-
-    final isShared = await _runContextAction(() {
-      return _shareDocumentsUseCase({documentId});
-    });
-    if (isShared) {
-      hideDocumentContextMenu();
+    if (documentId != null) {
+      final isShared = await _runAction(() {
+        return _shareDocumentsUseCase({documentId}, sharePositionOrigin);
+      });
+      if (isShared) {
+        hideDocumentContextMenu();
+      }
     }
   }
 
   Future<void> deleteContextDocument() async {
     final documentId = state.documentContextMenuId;
-    if (documentId == null) {
-      return;
-    }
-
-    final isDeleted = await _runContextAction(() {
-      return _deleteDocumentsUseCase({documentId});
-    });
-    if (isDeleted) {
-      hideDocumentContextMenu();
+    if (documentId != null) {
+      final isDeleted = await _runAction(() {
+        return _deleteDocumentsUseCase({documentId});
+      });
+      if (isDeleted) {
+        hideDocumentContextMenu();
+      }
     }
   }
 
   void _watchDocuments() {
     _documentsSubscription = _watchDocumentsUseCase().listen(
-      (documents) {
-        emit(state.copyWith(documents: documents, errorMessage: null));
+      (result) {
+        if (!isClosed) {
+          result.on(
+            success: (documents) {
+              emit(state.copyWith(documents: documents, failure: null));
+            },
+            failure: _emitFailure,
+          );
+        }
       },
-      onError: (Object error) {
-        emit(state.copyWith(errorMessage: error.toString()));
+      onError: (Object error, StackTrace stackTrace) {
+        if (!isClosed) {
+          _emitFailure(UnknownFailure(error, stackTrace));
+        }
       },
     );
   }
 
-  Future<void> _runImport(Future<void> Function() import) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
-
-    try {
-      await import();
-      emit(
-        state.copyWith(isLoading: false, isAddDocumentOverlayVisible: false),
-      );
-    } catch (error) {
-      emit(state.copyWith(isLoading: false, errorMessage: error.toString()));
+  Future<void> _runImport(Future<Result<void>> Function() import) async {
+    final isImported = await _runAction(import);
+    if (isImported && !isClosed) {
+      emit(state.copyWith(isAddDocumentOverlayVisible: false));
     }
   }
 
-  Future<bool> _runSelectionAction(Future<void> Function() action) async {
-    if (state.selectedDocumentIds.isEmpty) {
-      return false;
+  Future<bool> _runSelectionAction(Future<Result<void>> Function() action) async {
+    if (state.selectedDocumentIds.isNotEmpty) {
+      return _runAction(action);
     }
+    return false;
+  }
 
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+  Future<bool> _runAction(Future<Result<void>> Function() action) async {
+    if (!isClosed && !state.isLoading) {
+      emit(state.copyWith(isLoading: true, failure: null));
 
+      final result = await _execute(action);
+      if (!isClosed) {
+        return result.on(
+          success: (_) {
+            emit(state.copyWith(isLoading: false));
+            return true;
+          },
+          failure: (failure) {
+            emit(state.copyWith(isLoading: false, failure: failure));
+            return false;
+          },
+        );
+      }
+    }
+    return false;
+  }
+
+  Future<Result<void>> _execute(Future<Result<void>> Function() action) async {
     try {
-      await action();
-      emit(state.copyWith(isLoading: false));
-      return true;
-    } catch (error) {
-      emit(state.copyWith(isLoading: false, errorMessage: error.toString()));
-      return false;
+      return await action();
+    } catch (error, stackTrace) {
+      return Err(UnknownFailure(error, stackTrace));
     }
   }
 
-  Future<bool> _runContextAction(Future<void> Function() action) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
-
-    try {
-      await action();
-      emit(state.copyWith(isLoading: false));
-      return true;
-    } catch (error) {
-      emit(state.copyWith(isLoading: false, errorMessage: error.toString()));
-      return false;
-    }
+  void _emitFailure(Failure failure) {
+    emit(state.copyWith(failure: failure));
   }
 
   @override

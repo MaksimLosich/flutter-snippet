@@ -4,12 +4,11 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'tables/document_records.dart';
 
 part 'app_database.g.dart';
+part 'migrations/v1_to_v2.dart';
 
 @DriftDatabase(tables: [DocumentRecords])
 final class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'test_task_documents'));
-
-  AppDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 2;
@@ -19,7 +18,7 @@ final class AppDatabase extends _$AppDatabase {
     return MigrationStrategy(
       onUpgrade: (migrator, from, to) async {
         if (from < 2) {
-          await migrator.addColumn(documentRecords, documentRecords.isSigned);
+          await _migrateV1ToV2(migrator, this);
         }
       },
     );

@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Signica needs camera access to scan documents.</string>
+	<string>SignDocs needs camera access to scan documents.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Signica needs photo library access to import document images.</string>
+	<string>SignDocs needs photo library access to import document images.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

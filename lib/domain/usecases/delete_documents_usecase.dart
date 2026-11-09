@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:test_task/core/error/result.dart';
 
 import '../repositories/document_repository.dart';
 
@@ -8,7 +9,7 @@ final class DeleteDocumentsUseCase {
 
   final DocumentRepository _repository;
 
-  Future<void> call(Set<int> documentIds) {
+  Future<Result<void>> call(Set<int> documentIds) {
     return _repository.deleteDocuments(documentIds);
   }
 }

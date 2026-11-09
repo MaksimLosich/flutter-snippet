@@ -5,8 +5,6 @@ import 'package:test_task/data/database/app_database.dart';
 abstract interface class DocumentLocalDataSource {
   Stream<List<DocumentRecord>> watchDocuments();
 
-  Future<List<DocumentRecord>> getDocuments();
-
   Future<List<DocumentRecord>> getDocumentsByIds(Set<int> ids);
 
   Future<List<String>> getDocumentTitles();
@@ -33,15 +31,10 @@ final class DriftDocumentLocalDataSource implements DocumentLocalDataSource {
   Stream<List<DocumentRecord>> watchDocuments() {
     final query = _database.select(_database.documentRecords)
       ..orderBy([
-        (table) =>
-            OrderingTerm(expression: table.createdAt, mode: OrderingMode.desc),
+        (table) => OrderingTerm(expression: table.createdAt, mode: OrderingMode.desc),
+        (table) => OrderingTerm(expression: table.id, mode: OrderingMode.desc),
       ]);
     return query.watch();
-  }
-
-  @override
-  Future<List<DocumentRecord>> getDocuments() {
-    return _database.select(_database.documentRecords).get();
   }
 
   @override
@@ -50,15 +43,15 @@ final class DriftDocumentLocalDataSource implements DocumentLocalDataSource {
       return Future.value(const []);
     }
 
-    return (_database.select(
-      _database.documentRecords,
-    )..where((table) => table.id.isIn(ids))).get();
+    return (_database.select(_database.documentRecords)..where((table) => table.id.isIn(ids))).get();
   }
 
   @override
   Future<List<String>> getDocumentTitles() async {
-    final rows = await _database.select(_database.documentRecords).get();
-    return rows.map((row) => row.title).toList();
+    final title = _database.documentRecords.title;
+    final query = _database.selectOnly(_database.documentRecords)..addColumns([title]);
+    final rows = await query.get();
+    return rows.map((row) => row.read(title) ?? (throw StateError('Document title is missing'))).toList();
   }
 
   @override
@@ -83,9 +76,9 @@ final class DriftDocumentLocalDataSource implements DocumentLocalDataSource {
 
   @override
   Future<void> setDocumentSigned({required int id, required bool isSigned}) {
-    return (_database.update(_database.documentRecords)
-          ..where((table) => table.id.equals(id)))
-        .write(DocumentRecordsCompanion(isSigned: Value(isSigned)));
+    return (_database.update(
+      _database.documentRecords,
+    )..where((table) => table.id.equals(id))).write(DocumentRecordsCompanion(isSigned: Value(isSigned)));
   }
 
   @override
@@ -94,8 +87,6 @@ final class DriftDocumentLocalDataSource implements DocumentLocalDataSource {
       return Future.value();
     }
 
-    return (_database.delete(
-      _database.documentRecords,
-    )..where((table) => table.id.isIn(ids))).go();
+    return (_database.delete(_database.documentRecords)..where((table) => table.id.isIn(ids))).go();
   }
 }

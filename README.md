@@ -1,17 +1,23 @@
-# test_task
+# SignDocs: Flutter feature sample
 
-A new Flutter project.
+This repository presents one document workflow as a compact example of my Flutter code and technical decisions.
 
-## Getting Started
+Import an existing PDF, turn selected photos into a PDF, or scan pages with the device scanner. Documents are stored locally with generated previews. You can search and filter them, mark them as signed or unsigned, and share, print, or delete them. The signature is simulated as a document status; no cryptographic signing takes place.
 
-This project is a starting point for a Flutter application.
+## AI in my workflow
 
-A few resources to get you started if this is your first Flutter project:
+I use AI to explore approaches, speed up routine work, and review code. I do not delegate technical decisions to it: I inspect every line myself and take responsibility for what I keep. I also practice working with MCP, meta-prompting, orchestration, and agentic development workflows.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Architecture
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Presentation:** Flutter UI and Cubit state management.
+- **Domain:** use cases, a repository contract, and explicit `Result`/`Failure` handling.
+- **Data:** Drift persistence, managed file storage, PDF processing, and separate integrations for picking, scanning, sharing, and printing. File writes and cleanup are designed to handle partial failures.
+
+## Run
+
+```bash
+flutter pub get
+flutter run
+```
+

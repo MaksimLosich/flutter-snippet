@@ -1,5 +1,5 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:test_task/l10n/l10n_extension.dart';
 import 'package:test_task/presentation/home/assets.dart';
 import 'package:test_task/presentation/utils/dimens.dart';
 import 'package:test_task/presentation/utils/theme_extensions.dart';
@@ -17,7 +17,7 @@ class Logo extends StatelessWidget {
         Image.asset(HomeAssets.logo, width: imageSize, height: imageSize),
         const SizedBox(width: AppDimens.padding10),
         Text(
-          'app.name'.tr(),
+          context.localization.appName,
           style: context.textTheme.titleLarge?.copyWith(
             color: context.appColors.secondaryText,
             fontWeight: FontWeight.w800,

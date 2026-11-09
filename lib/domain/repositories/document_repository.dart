@@ -1,19 +1,26 @@
+import 'dart:ui';
+
+import 'package:test_task/core/error/result.dart';
+
 import '../entities/app_document.dart';
 
 abstract interface class DocumentRepository {
-  Stream<List<AppDocument>> watchDocuments();
+  Stream<Result<List<AppDocument>>> watchDocuments();
 
-  Future<void> importPdfFiles();
+  Future<Result<void>> importPdfFiles(int previewBackgroundColorArgb);
 
-  Future<void> importPhotoFiles();
+  Future<Result<void>> importPhotoFiles(int previewBackgroundColorArgb);
 
-  Future<void> scanDocument();
+  Future<Result<void>> scanDocument(int previewBackgroundColorArgb);
 
-  Future<void> toggleDocumentSignature(int documentId);
+  Future<Result<void>> toggleDocumentSignature(int documentId);
 
-  Future<void> deleteDocuments(Set<int> documentIds);
+  Future<Result<void>> deleteDocuments(Set<int> documentIds);
 
-  Future<void> shareDocuments(Set<int> documentIds);
+  Future<Result<void>> shareDocuments(
+    Set<int> documentIds,
+    Rect sharePositionOrigin,
+  );
 
-  Future<void> printDocument(int documentId);
+  Future<Result<void>> printDocument(int documentId);
 }

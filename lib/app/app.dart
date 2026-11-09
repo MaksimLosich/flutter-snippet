@@ -1,5 +1,6 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:test_task/l10n/app_localizations.dart';
+import 'package:test_task/l10n/l10n_extension.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -12,11 +13,10 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      onGenerateTitle: (context) => 'app.title'.tr(),
+      onGenerateTitle: (context) => context.localization.appTitle,
       theme: AppTheme.lightTheme,
-      localizationsDelegates: context.localizationDelegates,
-      supportedLocales: context.supportedLocales,
-      locale: context.locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: _appRouter.config(),
     );
   }

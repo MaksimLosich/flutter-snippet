@@ -1,0 +1,39 @@
+{
+  "@@locale": "en",
+  "appName": "SignDocs",
+  "appTitle": "SignDocs",
+  "homeActionsAddDocument": "Add Document",
+  "homeActionsAddDocumentFrom": "Add Document From",
+  "homeActionsSearch": "Search",
+  "homeMenuSelect": "Select",
+  "homeMenuAddDocument": "Add Document",
+  "homeSelectionSelectAll": "Select All",
+  "homeSelectionDeselectAll": "Deselect All ({count})",
+  "@homeSelectionDeselectAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeDocumentActionsPrint": "Print",
+  "homeDocumentActionsShare": "Share",
+  "homeDocumentActionsDelete": "Delete",
+  "homeFiltersAll": "All",
+  "homeFiltersSigned": "Signed",
+  "homeFiltersUnsigned": "Unsigned",
+  "homeEmptyTitle": "No Documents Yet",
+  "homeEmptySubtitle": "You can add documents from:",
+  "homeNoMatchingDocuments": "No matching documents",
+  "homeSourcesFiles": "Files",
+  "homeSourcesPhotos": "Photos",
+  "homeSourcesScanner": "Scanner",
+  "homeErrorsLoad": "Could not load documents.",
+  "homeErrorsImport": "Could not import documents.",
+  "homeErrorsScan": "Could not scan the document.",
+  "homeErrorsUpdate": "Could not update the document.",
+  "homeErrorsDelete": "Could not delete documents.",
+  "homeErrorsShare": "Could not share documents.",
+  "homeErrorsPrint": "Could not print the document.",
+  "homeErrorsUnexpected": "Something went wrong. Please try again."
+}

@@ -1,11 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../utils/dimens.dart';
-import '../../utils/theme_extensions.dart';
+import 'glass_settings.dart';
 
 class AppIconButton extends StatelessWidget {
   const AppIconButton({
@@ -21,16 +19,6 @@ class AppIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = LiquidGlassSettings.figma(
-      glassColor: context.appColors.glassBgWhite20,
-      lightAngle: -math.pi / 4,
-      lightIntensity: 80,
-      refraction: 29,
-      depth: 17,
-      dispersion: 50,
-      frost: 10,
-    );
-
     return GlassButton.custom(
       onTap: onPressed,
       width: size,
@@ -38,7 +26,7 @@ class AppIconButton extends StatelessWidget {
       alignment: Alignment.center,
       useOwnLayer: true,
       shape: const LiquidOval(),
-      settings: settings,
+      settings: buildToolbarGlassSettings(context),
       child: SvgPicture.asset(assetUrl),
     );
   }

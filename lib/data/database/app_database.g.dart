@@ -700,7 +700,16 @@ class $$DocumentRecordsTableTableManager
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DocumentRecordsTable, DocumentRecord>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DocumentRecordsTable,
+                    DocumentRecord
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

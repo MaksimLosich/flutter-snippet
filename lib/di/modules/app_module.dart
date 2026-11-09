@@ -4,9 +4,11 @@ import 'package:test_task/data/database/app_database.dart';
 
 @module
 abstract class AppModule {
-  @lazySingleton
+  @LazySingleton(dispose: disposeAppDatabase)
   AppDatabase get appDatabase => AppDatabase();
 
   @lazySingleton
   ImagePicker get imagePicker => ImagePicker();
 }
+
+Future<void> disposeAppDatabase(AppDatabase database) => database.close();

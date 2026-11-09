@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:test_task/core/error/result.dart';
 
 import '../repositories/document_repository.dart';
 
@@ -8,7 +9,7 @@ final class ImportPdfDocumentsUseCase {
 
   final DocumentRepository _repository;
 
-  Future<void> call() {
-    return _repository.importPdfFiles();
+  Future<Result<void>> call(int previewBackgroundColorArgb) {
+    return _repository.importPdfFiles(previewBackgroundColorArgb);
   }
 }

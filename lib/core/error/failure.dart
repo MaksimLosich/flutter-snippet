@@ -1,10 +1,10 @@
-sealed class Failure {
-  const Failure({required this.message, this.cause});
+abstract base class Failure {
+  const Failure(this.cause, this.stackTrace);
 
-  final String message;
   final Object? cause;
+  final StackTrace? stackTrace;
 }
 
 final class UnknownFailure extends Failure {
-  const UnknownFailure({required super.message, super.cause});
+  const UnknownFailure(super.cause, super.stackTrace);
 }

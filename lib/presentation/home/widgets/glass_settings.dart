@@ -16,3 +16,15 @@ glass.LiquidGlassSettings buildActionGlassSettings(BuildContext context) {
     frost: 24,
   );
 }
+
+glass.LiquidGlassSettings buildToolbarGlassSettings(BuildContext context) {
+  return glass.LiquidGlassSettings.figma(
+    glassColor: context.appColors.glassBgWhite20,
+    lightAngle: -math.pi / 4,
+    lightIntensity: 80,
+    refraction: 29,
+    depth: 17,
+    dispersion: 50,
+    frost: 10,
+  );
+}

@@ -15,6 +15,7 @@ abstract class AppColors {
   static const Color dangerText = Color(0xFFFF383C);
   static const Color documentDateText = Color(0xFF929292);
   static const Color documentTitleText = Color(0xFF191919);
+  static const Color documentPreviewBackground = Color(0xFFFFFFFF);
   static const Color documentPreviewBorder = Color(0x96DADADA);
   static const Color documentPreviewShadow = Color(0x14000000);
   static const Color documentSignedBadgeFill = Color(0xBFFFFFFF);

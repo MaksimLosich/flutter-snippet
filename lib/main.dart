@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_setup.dart';
 
@@ -9,15 +8,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LiquidGlassWidgets.initialize();
 
-  await EasyLocalization.ensureInitialized();
-  await configureDependencies();
+  configureDependencies();
 
-  runApp(
-    EasyLocalization(
-      supportedLocales: const [Locale('en')],
-      path: 'assets/translations',
-      fallbackLocale: const Locale('en'),
-      child: LiquidGlassWidgets.wrap(child: const App()),
-    ),
-  );
+  runApp(LiquidGlassWidgets.wrap(child: const App()));
 }

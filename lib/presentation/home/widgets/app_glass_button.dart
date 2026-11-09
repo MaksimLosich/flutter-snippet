@@ -3,28 +3,20 @@ import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:test_task/presentation/utils/dimens.dart';
 import 'package:test_task/presentation/utils/theme_extensions.dart';
 
-import 'action_glass_settings.dart';
+import 'glass_settings.dart';
 
 class AppGlassButton extends StatelessWidget {
-  const AppGlassButton.withPadding({
-    super.key,
-    required this.assetUrl,
-    required this.title,
-    this.onPressed,
-  }) : horizontalPadding = AppDimens.padding20,
-       width = null;
+  const AppGlassButton.withPadding({super.key, required this.assetUrl, required this.title, required this.onPressed})
+    : horizontalPadding = AppDimens.padding20,
+      width = null;
 
-  const AppGlassButton.tight({
-    super.key,
-    required this.assetUrl,
-    required this.title,
-    this.onPressed,
-  }) : horizontalPadding = 0,
-       width = 128.0;
+  const AppGlassButton.tight({super.key, required this.assetUrl, required this.title, required this.onPressed})
+    : horizontalPadding = 0,
+      width = 128.0;
 
   final String assetUrl;
   final String title;
-  final VoidCallback? onPressed;
+  final VoidCallback onPressed;
   final double horizontalPadding;
   final double? width;
 
@@ -37,17 +29,14 @@ class AppGlassButton extends StatelessWidget {
       child: SizedBox(
         width: width,
         child: GlassButton.custom(
-          onTap: onPressed ?? () {},
+          onTap: onPressed,
           alignment: Alignment.center,
           useOwnLayer: true,
-          shape: LiquidRoundedRectangle(borderRadius: AppDimens.radiusFull),
+          shape: const LiquidRoundedRectangle(borderRadius: AppDimens.radiusFull),
           settings: buildActionGlassSettings(context),
           child: Center(
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: AppDimens.padding16,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: AppDimens.padding16),
               child: Row(
                 mainAxisSize: .min,
                 children: [
@@ -55,10 +44,7 @@ class AppGlassButton extends StatelessWidget {
                   const SizedBox(width: AppDimens.padding8),
                   Text(
                     title,
-                    style: context.textTheme.titleMedium?.copyWith(
-                      fontWeight: .w700,
-                      color: appColors.buttonText,
-                    ),
+                    style: context.textTheme.titleMedium?.copyWith(fontWeight: .w700, color: appColors.buttonText),
                   ),
                 ],
               ),

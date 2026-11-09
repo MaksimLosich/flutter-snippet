@@ -1,29 +1,23 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
-import 'package:test_task/presentation/home/models/segmented_control_item.dart';
+import 'package:test_task/l10n/l10n_extension.dart';
+import 'package:test_task/presentation/home/models/document_filter.dart';
 
 import '../../utils/dimens.dart';
 import '../../utils/theme_extensions.dart';
 
 class SegmentedControl extends StatelessWidget {
-  const SegmentedControl({
-    this.groupValue = SegmentedControlItem.all,
-    this.onValueChanged,
-    super.key,
-  });
+  const SegmentedControl({required this.groupValue, required this.onValueChanged, super.key});
 
-  final SegmentedControlItem groupValue;
-  final ValueChanged<SegmentedControlItem>? onValueChanged;
+  final DocumentFilter groupValue;
+  final ValueChanged<DocumentFilter> onValueChanged;
 
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
-    final selectedIndex = SegmentedControlItem.values.indexOf(groupValue);
+    final selectedIndex = DocumentFilter.values.indexOf(groupValue);
 
-    final textStyle = context.textTheme.titleSmall?.copyWith(
-      fontWeight: FontWeight.w700,
-    );
+    final textStyle = context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700);
 
     return GlassSegmentedControl(
       height: 36,
@@ -36,12 +30,18 @@ class SegmentedControl extends StatelessWidget {
       unselectedTextStyle: textStyle,
       useOwnLayer: true,
       segments: [
-        for (final item in SegmentedControlItem.values)
-          GlassSegment(label: item.localizationKey.tr()),
+        for (final item in DocumentFilter.values)
+          GlassSegment(
+            label: switch (item) {
+              DocumentFilter.all => context.localization.homeFiltersAll,
+              DocumentFilter.signed => context.localization.homeFiltersSigned,
+              DocumentFilter.unsigned => context.localization.homeFiltersUnsigned,
+            },
+          ),
       ],
       selectedIndex: selectedIndex,
       onSegmentSelected: (index) {
-        onValueChanged?.call(SegmentedControlItem.values[index]);
+        onValueChanged(DocumentFilter.values[index]);
       },
     );
   }

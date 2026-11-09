@@ -1,11 +1,15 @@
 import 'dart:ui';
 
 import 'package:equatable/equatable.dart';
+import 'package:test_task/core/error/failure.dart';
 import 'package:test_task/domain/entities/app_document.dart';
+
+import '../models/document_filter.dart';
 
 final class HomeState extends Equatable {
   const HomeState({
     this.documents = const [],
+    this.documentFilter = DocumentFilter.all,
     this.isLoading = false,
     this.isAddDocumentOverlayVisible = false,
     this.isSearchVisible = false,
@@ -14,12 +18,13 @@ final class HomeState extends Equatable {
     this.documentContextMenuId,
     this.documentContextMenuAnchor,
     this.searchQuery = '',
-    this.errorMessage,
+    this.failure,
   });
 
   static const _notSet = Object();
 
   final List<AppDocument> documents;
+  final DocumentFilter documentFilter;
   final bool isLoading;
   final bool isAddDocumentOverlayVisible;
   final bool isSearchVisible;
@@ -28,50 +33,37 @@ final class HomeState extends Equatable {
   final int? documentContextMenuId;
   final Offset? documentContextMenuAnchor;
   final String searchQuery;
-  final String? errorMessage;
+  final Failure? failure;
 
   bool get hasActiveSearch => searchQuery.trim().isNotEmpty;
 
   int get selectedDocumentCount => selectedDocumentIds.length;
 
   AppDocument? get documentContextMenuDocument {
-    final id = documentContextMenuId;
-    if (id == null) {
-      return null;
-    }
-
-    for (final document in visibleDocuments) {
-      if (document.id == id) {
-        return document;
-      }
-    }
-
-    return null;
+    return visibleDocuments.where((document) => document.id == documentContextMenuId).firstOrNull;
   }
 
   List<AppDocument> get visibleDocuments {
     final query = searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return documents;
-    }
-
     return documents.where((document) {
-      return document.title.toLowerCase().contains(query);
+      final matchesFilter = switch (documentFilter) {
+        DocumentFilter.all => true,
+        DocumentFilter.signed => document.isSigned,
+        DocumentFilter.unsigned => !document.isSigned,
+      };
+      final matchesSearch = query.isEmpty || document.title.toLowerCase().contains(query);
+      return matchesFilter && matchesSearch;
     }).toList();
   }
 
   bool get areAllVisibleDocumentsSelected {
-    if (visibleDocuments.isEmpty) {
-      return false;
-    }
-
-    return visibleDocuments.every((document) {
-      return selectedDocumentIds.contains(document.id);
-    });
+    final visible = visibleDocuments;
+    return visible.isNotEmpty && visible.every((document) => selectedDocumentIds.contains(document.id));
   }
 
   HomeState copyWith({
     List<AppDocument>? documents,
+    DocumentFilter? documentFilter,
     bool? isLoading,
     bool? isAddDocumentOverlayVisible,
     bool? isSearchVisible,
@@ -80,13 +72,13 @@ final class HomeState extends Equatable {
     Object? documentContextMenuId = _notSet,
     Object? documentContextMenuAnchor = _notSet,
     String? searchQuery,
-    Object? errorMessage = _notSet,
+    Object? failure = _notSet,
   }) {
     return HomeState(
       documents: documents ?? this.documents,
+      documentFilter: documentFilter ?? this.documentFilter,
       isLoading: isLoading ?? this.isLoading,
-      isAddDocumentOverlayVisible:
-          isAddDocumentOverlayVisible ?? this.isAddDocumentOverlayVisible,
+      isAddDocumentOverlayVisible: isAddDocumentOverlayVisible ?? this.isAddDocumentOverlayVisible,
       isSearchVisible: isSearchVisible ?? this.isSearchVisible,
       isSelectMode: isSelectMode ?? this.isSelectMode,
       selectedDocumentIds: selectedDocumentIds ?? this.selectedDocumentIds,
@@ -97,9 +89,7 @@ final class HomeState extends Equatable {
           ? this.documentContextMenuAnchor
           : documentContextMenuAnchor as Offset?,
       searchQuery: searchQuery ?? this.searchQuery,
-      errorMessage: identical(errorMessage, _notSet)
-          ? this.errorMessage
-          : errorMessage as String?,
+      failure: identical(failure, _notSet) ? this.failure : failure as Failure?,
     );
   }
 
@@ -107,15 +97,16 @@ final class HomeState extends Equatable {
   List<Object?> get props {
     return [
       documents,
+      documentFilter,
       isLoading,
       isAddDocumentOverlayVisible,
       isSearchVisible,
       isSelectMode,
-      selectedDocumentIds.toList()..sort(),
+      selectedDocumentIds,
       documentContextMenuId,
       documentContextMenuAnchor,
       searchQuery,
-      errorMessage,
+      failure,
     ];
   }
 }

@@ -10,12 +10,22 @@ abstract class AppTheme {
       fontFamily: _fontFamily,
       useMaterial3: true,
       extensions: const [_colors],
+      colorScheme: ColorScheme.light(
+        primary: _colors.buttonText,
+        onPrimary: _colors.secondaryText,
+        secondary: _colors.addDocumentGradientStart,
+        onSecondary: _colors.primaryText,
+        surface: _colors.secondaryBg,
+        onSurface: _colors.primaryText,
+        error: _colors.dangerText,
+        onError: _colors.primaryText,
+      ),
+      textTheme: _textTheme,
       scaffoldBackgroundColor: _colors.primaryBg,
-      textTheme: _buildTextTheme(),
     );
   }
 
-  static TextTheme _buildTextTheme() {
+  static TextTheme get _textTheme {
     return TextTheme(
       displaySmall: TextStyle(
         fontFamily: _fontFamily,
@@ -35,7 +45,7 @@ abstract class AppTheme {
         fontFamily: _fontFamily,
         fontSize: 16,
         fontWeight: FontWeight.w600,
-        color: AppColors.primaryText,
+        color: _colors.primaryText,
       ),
       titleSmall: TextStyle(
         fontFamily: _fontFamily,
@@ -70,6 +80,7 @@ final class AppThemeColors extends ThemeExtension<AppThemeColors> {
     required this.onSurfaceText,
     required this.documentDateText,
     required this.documentTitleText,
+    required this.documentPreviewBackground,
     required this.documentPreviewBorder,
     required this.documentPreviewShadow,
     required this.documentSignedBadgeFill,
@@ -96,6 +107,7 @@ final class AppThemeColors extends ThemeExtension<AppThemeColors> {
   final Color onSurfaceText;
   final Color documentDateText;
   final Color documentTitleText;
+  final Color documentPreviewBackground;
   final Color documentPreviewBorder;
   final Color documentPreviewShadow;
   final Color documentSignedBadgeFill;
@@ -122,6 +134,7 @@ final class AppThemeColors extends ThemeExtension<AppThemeColors> {
     onSurfaceText: AppColors.onSurfaceText,
     documentDateText: AppColors.documentDateText,
     documentTitleText: AppColors.documentTitleText,
+    documentPreviewBackground: AppColors.documentPreviewBackground,
     documentPreviewBorder: AppColors.documentPreviewBorder,
     documentPreviewShadow: AppColors.documentPreviewShadow,
     documentSignedBadgeFill: AppColors.documentSignedBadgeFill,
@@ -150,6 +163,7 @@ final class AppThemeColors extends ThemeExtension<AppThemeColors> {
     Color? onSurfaceText,
     Color? documentDateText,
     Color? documentTitleText,
+    Color? documentPreviewBackground,
     Color? documentPreviewBorder,
     Color? documentPreviewShadow,
     Color? documentSignedBadgeFill,
@@ -176,6 +190,8 @@ final class AppThemeColors extends ThemeExtension<AppThemeColors> {
       onSurfaceText: onSurfaceText ?? this.onSurfaceText,
       documentDateText: documentDateText ?? this.documentDateText,
       documentTitleText: documentTitleText ?? this.documentTitleText,
+      documentPreviewBackground:
+          documentPreviewBackground ?? this.documentPreviewBackground,
       documentPreviewBorder:
           documentPreviewBorder ?? this.documentPreviewBorder,
       documentPreviewShadow:
@@ -201,83 +217,87 @@ final class AppThemeColors extends ThemeExtension<AppThemeColors> {
 
   @override
   AppThemeColors lerp(ThemeExtension<AppThemeColors>? other, double t) {
-    if (other is! AppThemeColors) {
-      return this;
+    if (other is AppThemeColors) {
+      return AppThemeColors(
+        primaryBg: Color.lerp(primaryBg, other.primaryBg, t)!,
+        secondaryBg: Color.lerp(secondaryBg, other.secondaryBg, t)!,
+        primaryText: Color.lerp(primaryText, other.primaryText, t)!,
+        secondaryText: Color.lerp(secondaryText, other.secondaryText, t)!,
+        tertiaryText: Color.lerp(tertiaryText, other.tertiaryText, t)!,
+        buttonText: Color.lerp(buttonText, other.buttonText, t)!,
+        menuText: Color.lerp(menuText, other.menuText, t)!,
+        dangerText: Color.lerp(dangerText, other.dangerText, t)!,
+        onSurfaceText: Color.lerp(onSurfaceText, other.onSurfaceText, t)!,
+        documentDateText: Color.lerp(
+          documentDateText,
+          other.documentDateText,
+          t,
+        )!,
+        documentTitleText: Color.lerp(
+          documentTitleText,
+          other.documentTitleText,
+          t,
+        )!,
+        documentPreviewBackground: Color.lerp(
+          documentPreviewBackground,
+          other.documentPreviewBackground,
+          t,
+        )!,
+        documentPreviewBorder: Color.lerp(
+          documentPreviewBorder,
+          other.documentPreviewBorder,
+          t,
+        )!,
+        documentPreviewShadow: Color.lerp(
+          documentPreviewShadow,
+          other.documentPreviewShadow,
+          t,
+        )!,
+        documentSignedBadgeFill: Color.lerp(
+          documentSignedBadgeFill,
+          other.documentSignedBadgeFill,
+          t,
+        )!,
+        glassBgWhite10: Color.lerp(glassBgWhite10, other.glassBgWhite10, t)!,
+        glassBgWhite20: Color.lerp(glassBgWhite20, other.glassBgWhite20, t)!,
+        glassMenuFill: Color.lerp(glassMenuFill, other.glassMenuFill, t)!,
+        segmentedBackfill: Color.lerp(
+          segmentedBackfill,
+          other.segmentedBackfill,
+          t,
+        )!,
+        segmentedControlFill: Color.lerp(
+          segmentedControlFill,
+          other.segmentedControlFill,
+          t,
+        )!,
+        segmentedControlShadow: Color.lerp(
+          segmentedControlShadow,
+          other.segmentedControlShadow,
+          t,
+        )!,
+        segmentedDivider: Color.lerp(
+          segmentedDivider,
+          other.segmentedDivider,
+          t,
+        )!,
+        documentContextSeparator: Color.lerp(
+          documentContextSeparator,
+          other.documentContextSeparator,
+          t,
+        )!,
+        addDocumentGradientStart: Color.lerp(
+          addDocumentGradientStart,
+          other.addDocumentGradientStart,
+          t,
+        )!,
+        addDocumentGradientEnd: Color.lerp(
+          addDocumentGradientEnd,
+          other.addDocumentGradientEnd,
+          t,
+        )!,
+      );
     }
-
-    return AppThemeColors(
-      primaryBg: Color.lerp(primaryBg, other.primaryBg, t)!,
-      secondaryBg: Color.lerp(secondaryBg, other.secondaryBg, t)!,
-      primaryText: Color.lerp(primaryText, other.primaryText, t)!,
-      secondaryText: Color.lerp(secondaryText, other.secondaryText, t)!,
-      tertiaryText: Color.lerp(tertiaryText, other.tertiaryText, t)!,
-      buttonText: Color.lerp(buttonText, other.buttonText, t)!,
-      menuText: Color.lerp(menuText, other.menuText, t)!,
-      dangerText: Color.lerp(dangerText, other.dangerText, t)!,
-      onSurfaceText: Color.lerp(onSurfaceText, other.onSurfaceText, t)!,
-      documentDateText: Color.lerp(
-        documentDateText,
-        other.documentDateText,
-        t,
-      )!,
-      documentTitleText: Color.lerp(
-        documentTitleText,
-        other.documentTitleText,
-        t,
-      )!,
-      documentPreviewBorder: Color.lerp(
-        documentPreviewBorder,
-        other.documentPreviewBorder,
-        t,
-      )!,
-      documentPreviewShadow: Color.lerp(
-        documentPreviewShadow,
-        other.documentPreviewShadow,
-        t,
-      )!,
-      documentSignedBadgeFill: Color.lerp(
-        documentSignedBadgeFill,
-        other.documentSignedBadgeFill,
-        t,
-      )!,
-      glassBgWhite10: Color.lerp(glassBgWhite10, other.glassBgWhite10, t)!,
-      glassBgWhite20: Color.lerp(glassBgWhite20, other.glassBgWhite20, t)!,
-      glassMenuFill: Color.lerp(glassMenuFill, other.glassMenuFill, t)!,
-      segmentedBackfill: Color.lerp(
-        segmentedBackfill,
-        other.segmentedBackfill,
-        t,
-      )!,
-      segmentedControlFill: Color.lerp(
-        segmentedControlFill,
-        other.segmentedControlFill,
-        t,
-      )!,
-      segmentedControlShadow: Color.lerp(
-        segmentedControlShadow,
-        other.segmentedControlShadow,
-        t,
-      )!,
-      segmentedDivider: Color.lerp(
-        segmentedDivider,
-        other.segmentedDivider,
-        t,
-      )!,
-      documentContextSeparator: Color.lerp(
-        documentContextSeparator,
-        other.documentContextSeparator,
-        t,
-      )!,
-      addDocumentGradientStart: Color.lerp(
-        addDocumentGradientStart,
-        other.addDocumentGradientStart,
-        t,
-      )!,
-      addDocumentGradientEnd: Color.lerp(
-        addDocumentGradientEnd,
-        other.addDocumentGradientEnd,
-        t,
-      )!,
-    );
+    return this;
   }
 }

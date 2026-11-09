@@ -9,6 +9,7 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:image_picker/image_picker.dart' as _i183;
 import 'package:injectable/injectable.dart' as _i526;
@@ -17,6 +18,8 @@ import 'package:test_task/data/datasources/document_file_datasource.dart'
     as _i870;
 import 'package:test_task/data/datasources/document_local_datasource.dart'
     as _i996;
+import 'package:test_task/data/datasources/document_pdf_processor.dart'
+    as _i1043;
 import 'package:test_task/data/datasources/document_picker_datasource.dart'
     as _i179;
 import 'package:test_task/data/datasources/document_print_datasource.dart'
@@ -54,7 +57,10 @@ extension GetItInjectableX on _i174.GetIt {
   }) {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final appModule = _$AppModule();
-    gh.lazySingleton<_i120.AppDatabase>(() => appModule.appDatabase);
+    gh.lazySingleton<_i120.AppDatabase>(
+      () => appModule.appDatabase,
+      dispose: _i458.disposeAppDatabase,
+    );
     gh.lazySingleton<_i183.ImagePicker>(() => appModule.imagePicker);
     gh.lazySingleton<_i856.DocumentScannerDataSource>(
       () => _i856.CunningDocumentScannerDataSource(),
@@ -71,6 +77,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i870.DocumentFileDataSource>(
       () => _i870.LocalDocumentFileDataSource(),
     );
+    gh.lazySingleton<_i1043.DocumentPdfProcessor>(
+      () => _i1043.LocalDocumentPdfProcessor(),
+    );
     gh.lazySingleton<_i996.DocumentLocalDataSource>(
       () => _i996.DriftDocumentLocalDataSource(gh<_i120.AppDatabase>()),
     );
@@ -81,6 +90,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i352.DocumentPrintDataSource>(),
         gh<_i666.DocumentShareDataSource>(),
         gh<_i870.DocumentFileDataSource>(),
+        gh<_i1043.DocumentPdfProcessor>(),
         gh<_i996.DocumentLocalDataSource>(),
       ),
     );

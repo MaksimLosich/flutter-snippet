@@ -3,25 +3,25 @@ import 'failure.dart';
 sealed class Result<T> {
   const Result();
 
-  R when<R>({
+  R on<R>({
     required R Function(T data) success,
     required R Function(Failure failure) failure,
   }) {
     return switch (this) {
-      Success<T>(:final data) => success(data),
-      Failed<T>(failure: final error) => failure(error),
+      Ok<T>(:final data) => success(data),
+      Err<T>(failure: final error) => failure(error),
     };
   }
 }
 
-final class Success<T> extends Result<T> {
-  const Success(this.data);
+final class Ok<T> extends Result<T> {
+  const Ok(this.data);
 
   final T data;
 }
 
-final class Failed<T> extends Result<T> {
-  const Failed(this.failure);
+final class Err<T> extends Result<T> {
+  const Err(this.failure);
 
   final Failure failure;
 }

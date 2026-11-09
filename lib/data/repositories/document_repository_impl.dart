@@ -1,15 +1,22 @@
-import 'dart:io';
+import 'dart:async';
+import 'dart:ui';
 
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
+import 'package:test_task/core/error/result.dart';
 import 'package:test_task/data/database/app_database.dart';
 import 'package:test_task/data/datasources/document_file_datasource.dart';
 import 'package:test_task/data/datasources/document_local_datasource.dart';
+import 'package:test_task/data/datasources/document_pdf_processor.dart';
 import 'package:test_task/data/datasources/document_picker_datasource.dart';
 import 'package:test_task/data/datasources/document_print_datasource.dart';
 import 'package:test_task/data/datasources/document_scanner_datasource.dart';
 import 'package:test_task/data/datasources/document_share_datasource.dart';
+import 'package:test_task/data/mappers/document_mapper.dart';
+import 'package:test_task/data/models/preview_page.dart';
+import 'package:test_task/data/models/stored_document_path.dart';
 import 'package:test_task/domain/entities/app_document.dart';
+import 'package:test_task/domain/failures/document_failure.dart';
 import 'package:test_task/domain/repositories/document_repository.dart';
 
 @LazySingleton(as: DocumentRepository)
@@ -22,6 +29,7 @@ final class DocumentRepositoryImpl implements DocumentRepository {
     this._printDataSource,
     this._shareDataSource,
     this._fileDataSource,
+    this._pdfProcessor,
     this._localDataSource,
   );
 
@@ -30,140 +38,195 @@ final class DocumentRepositoryImpl implements DocumentRepository {
   final DocumentPrintDataSource _printDataSource;
   final DocumentShareDataSource _shareDataSource;
   final DocumentFileDataSource _fileDataSource;
+  final DocumentPdfProcessor _pdfProcessor;
   final DocumentLocalDataSource _localDataSource;
 
   @override
-  Stream<List<AppDocument>> watchDocuments() {
-    return _localDataSource.watchDocuments().asyncMap(_resolveValidDocuments);
-  }
-
-  @override
-  Future<void> importPdfFiles() async {
-    final pdfPaths = await _pickerDataSource.pickPdfFiles();
-
-    for (final pdfPath in pdfPaths) {
-      await _savePdf(pdfPath);
+  Stream<Result<List<AppDocument>>> watchDocuments() {
+    try {
+      return _localDataSource
+          .watchDocuments()
+          .asyncMap<Result<List<AppDocument>>>((records) async {
+            try {
+              return Ok(await _resolveDocuments(records));
+            } catch (error, stackTrace) {
+              return Err(DocumentFailure(DocumentOperation.load, error, stackTrace));
+            }
+          })
+          .transform(
+            StreamTransformer.fromHandlers(
+              handleError: (Object error, StackTrace stackTrace, EventSink<Result<List<AppDocument>>> sink) {
+                sink.add(Err(DocumentFailure(DocumentOperation.load, error, stackTrace)));
+              },
+            ),
+          );
+    } catch (error, stackTrace) {
+      return Stream.value(Err(DocumentFailure(DocumentOperation.load, error, stackTrace)));
     }
   }
 
   @override
-  Future<void> importPhotoFiles() async {
-    final imagePaths = await _pickerDataSource.pickImageFiles();
-    await _saveImagesAsPdf(imagePaths);
-  }
+  Future<Result<void>> importPdfFiles(int previewBackgroundColorArgb) {
+    return _run(DocumentOperation.import, () async {
+      final pdfPaths = await _pickerDataSource.pickPdfFiles();
 
-  @override
-  Future<void> scanDocument() async {
-    final imagePaths = await _scannerDataSource.scanImages();
-    await _saveImagesAsPdf(imagePaths);
-  }
-
-  @override
-  Future<void> toggleDocumentSignature(int documentId) async {
-    final records = await _localDataSource.getDocuments();
-    DocumentRecord? record;
-    for (final item in records) {
-      if (item.id == documentId) {
-        record = item;
-        break;
+      for (final pdfPath in pdfPaths) {
+        await _savePdf(pdfPath, previewBackgroundColorArgb);
       }
-    }
-
-    if (record == null) {
-      return;
-    }
-
-    await _localDataSource.setDocumentSigned(
-      id: documentId,
-      isSigned: !record.isSigned,
-    );
+    });
   }
 
   @override
-  Future<void> deleteDocuments(Set<int> documentIds) async {
-    if (documentIds.isEmpty) {
-      return;
-    }
-
-    final records = await _localDataSource.getDocumentsByIds(documentIds);
-    final paths = records
-        .expand(
-          (record) => [
-            record.pdfPath,
-            record.firstPreviewPath,
-            record.lastPreviewPath,
-          ],
-        )
-        .toList();
-
-    await _fileDataSource.deleteFiles(paths);
-    await _localDataSource.deleteDocumentsByIds(documentIds.toList());
+  Future<Result<void>> importPhotoFiles(int previewBackgroundColorArgb) {
+    return _run(DocumentOperation.import, () async {
+      final imagePaths = await _pickerDataSource.pickImageFiles();
+      await _saveImagesAsPdf(imagePaths, previewBackgroundColorArgb);
+    });
   }
 
   @override
-  Future<void> shareDocuments(Set<int> documentIds) async {
-    if (documentIds.isEmpty) {
-      return;
-    }
-
-    final records = await _localDataSource.getDocumentsByIds(documentIds);
-    final pdfPaths = <String>[];
-    for (final record in records) {
-      pdfPaths.add(await _fileDataSource.resolvePath(record.pdfPath));
-    }
-
-    await _shareDataSource.sharePdfFiles(pdfPaths);
+  Future<Result<void>> scanDocument(int previewBackgroundColorArgb) {
+    return _run(DocumentOperation.scan, () async {
+      final imagePaths = await _scannerDataSource.scanImages();
+      try {
+        await _saveImagesAsPdf(imagePaths, previewBackgroundColorArgb);
+      } finally {
+        await _scannerDataSource.deleteScannedImages(imagePaths);
+      }
+    });
   }
 
   @override
-  Future<void> printDocument(int documentId) async {
-    final records = await _localDataSource.getDocumentsByIds({documentId});
-    if (records.isEmpty) {
-      return;
-    }
-
-    final record = records.first;
-    await _printDataSource.printPdfFile(
-      pdfPath: await _fileDataSource.resolvePath(record.pdfPath),
-      name: record.title,
-    );
+  Future<Result<void>> toggleDocumentSignature(int documentId) {
+    return _run(DocumentOperation.update, () async {
+      final records = await _localDataSource.getDocumentsByIds({documentId});
+      if (records.isNotEmpty) {
+        await _localDataSource.setDocumentSigned(id: documentId, isSigned: !records.first.isSigned);
+      }
+    });
   }
 
-  Future<void> _saveImagesAsPdf(List<String> imagePaths) async {
+  @override
+  Future<Result<void>> deleteDocuments(Set<int> documentIds) {
+    return _run(DocumentOperation.delete, () async {
+      if (documentIds.isNotEmpty) {
+        final records = await _localDataSource.getDocumentsByIds(documentIds);
+        final paths = records
+            .expand((record) => [record.pdfPath, record.firstPreviewPath, record.lastPreviewPath])
+            .whereType<String>()
+            .map(StoredDocumentPath.new)
+            .toList();
+
+        await _fileDataSource.deleteStoredFiles(paths);
+        await _localDataSource.deleteDocumentsByIds(documentIds.toList());
+      }
+    });
+  }
+
+  @override
+  Future<Result<void>> shareDocuments(Set<int> documentIds, Rect sharePositionOrigin) {
+    return _run(DocumentOperation.share, () async {
+      if (documentIds.isNotEmpty) {
+        final records = await _localDataSource.getDocumentsByIds(documentIds);
+        final pdfPaths = <String>[];
+        for (final record in records) {
+          pdfPaths.add(await _fileDataSource.resolveStoredPath(StoredDocumentPath(record.pdfPath)));
+        }
+
+        await _shareDataSource.sharePdfFiles(pdfPaths, sharePositionOrigin);
+      }
+    });
+  }
+
+  @override
+  Future<Result<void>> printDocument(int documentId) {
+    return _run(DocumentOperation.print, () async {
+      final records = await _localDataSource.getDocumentsByIds({documentId});
+      if (records.isNotEmpty) {
+        final record = records.first;
+        await _printDataSource.printPdfFile(
+          pdfPath: await _fileDataSource.resolveStoredPath(StoredDocumentPath(record.pdfPath)),
+          name: record.title,
+        );
+      }
+    });
+  }
+
+  Future<Result<void>> _run(DocumentOperation operation, Future<void> Function() action) async {
+    try {
+      await action();
+      return const Ok<void>(null);
+    } catch (error, stackTrace) {
+      return Err(DocumentFailure(operation, error, stackTrace));
+    }
+  }
+
+  Future<void> _saveImagesAsPdf(List<String> imagePaths, int previewBackgroundColorArgb) async {
     if (imagePaths.isEmpty) {
       return;
     }
 
-    final pdfPath = await _fileDataSource.createPdfFromImages(imagePaths);
-    await _insertPreparedPdf(title: _newDocumentTitle, pdfPath: pdfPath);
+    await _insertPreparedPdf(
+      title: _newDocumentTitle,
+      previewBackgroundColorArgb: previewBackgroundColorArgb,
+      createPdf: () async {
+        final bytes = await _pdfProcessor.createPdfFromImages(imagePaths);
+        return _fileDataSource.writePdf(bytes);
+      },
+    );
   }
 
-  Future<void> _savePdf(String sourcePdfPath) async {
-    final pdfPath = await _fileDataSource.copyPdfToStorage(sourcePdfPath);
+  Future<void> _savePdf(String sourcePdfPath, int previewBackgroundColorArgb) async {
     await _insertPreparedPdf(
       title: p.basenameWithoutExtension(sourcePdfPath),
-      pdfPath: pdfPath,
+      previewBackgroundColorArgb: previewBackgroundColorArgb,
+      createPdf: () => _fileDataSource.copyPdfToStorage(sourcePdfPath),
     );
   }
 
   Future<void> _insertPreparedPdf({
     required String title,
-    required String pdfPath,
+    required int previewBackgroundColorArgb,
+    required Future<StoredDocumentPath> Function() createPdf,
   }) async {
-    final previews = await _fileDataSource.createPdfPreviews(pdfPath);
-    final uniqueTitle = await _resolveUniqueTitle(
-      title.trim().isEmpty ? _fallbackTitle(pdfPath) : title,
-    );
-    await _localDataSource.insertDocument(
-      title: uniqueTitle,
-      pdfPath: pdfPath,
-      firstPreviewPath: previews.firstPreviewPath,
-      lastPreviewPath: previews.lastPreviewPath,
-    );
-  }
+    final createdPaths = <StoredDocumentPath>[];
+    try {
+      final pdfPath = await createPdf();
+      createdPaths.add(pdfPath);
 
-  String _fallbackTitle(String path) {
-    return p.basenameWithoutExtension(path);
+      final absolutePdfPath = await _fileDataSource.resolveStoredPath(pdfPath);
+      final previews = await _pdfProcessor.renderPreviews(
+        absolutePdfPath,
+        backgroundColorArgb: previewBackgroundColorArgb,
+      );
+      final firstPreviewPath = await _fileDataSource.writePreview(
+        previews.first,
+        pdfPath: pdfPath,
+        page: PreviewPage.first,
+      );
+      createdPaths.add(firstPreviewPath);
+
+      StoredDocumentPath? lastPreviewPath;
+      if (previews.last case final lastBytes?) {
+        lastPreviewPath = await _fileDataSource.writePreview(lastBytes, pdfPath: pdfPath, page: PreviewPage.last);
+        createdPaths.add(lastPreviewPath);
+      }
+
+      final uniqueTitle = await _resolveUniqueTitle(title);
+      await _localDataSource.insertDocument(
+        title: uniqueTitle,
+        pdfPath: pdfPath.value,
+        firstPreviewPath: firstPreviewPath.value,
+        lastPreviewPath: lastPreviewPath?.value,
+      );
+    } catch (error, stackTrace) {
+      try {
+        await _fileDataSource.deleteStoredFiles(createdPaths);
+      } catch (_) {
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+      rethrow;
+    }
   }
 
   Future<String> _resolveUniqueTitle(String rawTitle) async {
@@ -182,56 +245,7 @@ final class DocumentRepositoryImpl implements DocumentRepository {
     return uniqueTitle;
   }
 
-  Future<List<AppDocument>> _resolveValidDocuments(
-    List<DocumentRecord> records,
-  ) async {
-    final validRecords = <DocumentRecord>[];
-    final invalidIds = <int>[];
-
-    for (final record in records) {
-      if (await _hasRequiredFiles(record)) {
-        validRecords.add(record);
-      } else {
-        invalidIds.add(record.id);
-      }
-    }
-
-    if (invalidIds.isNotEmpty) {
-      await _localDataSource.deleteDocumentsByIds(invalidIds);
-    }
-
-    return Future.wait(validRecords.map(_toEntity));
-  }
-
-  Future<bool> _hasRequiredFiles(DocumentRecord record) async {
-    final pdfPath = await _fileDataSource.resolvePath(record.pdfPath);
-    final firstPreviewPath = await _fileDataSource.resolvePath(
-      record.firstPreviewPath,
-    );
-    final lastPreviewPath = record.lastPreviewPath == null
-        ? null
-        : await _fileDataSource.resolvePath(record.lastPreviewPath!);
-
-    final hasPdf = await File(pdfPath).exists();
-    final hasFirstPreview = await File(firstPreviewPath).exists();
-    final hasLastPreview =
-        lastPreviewPath == null || await File(lastPreviewPath).exists();
-    return hasPdf && hasFirstPreview && hasLastPreview;
-  }
-
-  Future<AppDocument> _toEntity(DocumentRecord record) async {
-    return AppDocument(
-      id: record.id,
-      title: record.title,
-      pdfPath: await _fileDataSource.resolvePath(record.pdfPath),
-      firstPreviewPath: await _fileDataSource.resolvePath(
-        record.firstPreviewPath,
-      ),
-      lastPreviewPath: record.lastPreviewPath == null
-          ? null
-          : await _fileDataSource.resolvePath(record.lastPreviewPath!),
-      createdAt: record.createdAt,
-      isSigned: record.isSigned,
-    );
+  Future<List<AppDocument>> _resolveDocuments(List<DocumentRecord> records) {
+    return Future.wait(records.map((record) => record.toEntity(_fileDataSource.resolveStoredPath)));
   }
 }

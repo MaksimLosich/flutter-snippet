@@ -1,0 +1,1 @@
+enum PreviewPage { first, last }

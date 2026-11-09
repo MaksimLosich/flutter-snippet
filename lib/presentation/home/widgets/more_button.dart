@@ -1,23 +1,19 @@
 import 'dart:math' as math;
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:test_task/l10n/l10n_extension.dart';
 import 'package:test_task/presentation/utils/dimens.dart';
 
 import '../../utils/theme_extensions.dart';
 import '../assets.dart';
 
 class MoreButton extends StatefulWidget {
-  const MoreButton({
-    super.key,
-    this.onSelectPressed,
-    this.onAddDocumentPressed,
-  });
+  const MoreButton({super.key, required this.onSelectPressed, required this.onAddDocumentPressed});
 
-  final VoidCallback? onSelectPressed;
-  final VoidCallback? onAddDocumentPressed;
+  final VoidCallback onSelectPressed;
+  final VoidCallback onAddDocumentPressed;
 
   @override
   State<MoreButton> createState() => _MoreButtonState();
@@ -71,7 +67,6 @@ class _MoreButtonState extends State<MoreButton> {
           shape: GlassIconButtonShape.roundedSquare,
           borderRadius: AppDimens.moreButtonRadius,
           settings: buttonSettings,
-          semanticLabel: 'home.menu.more'.tr(),
         ),
       ),
     );
@@ -90,12 +85,12 @@ class _MorePopoverOverlay extends StatelessWidget {
   final LayerLink layerLink;
   final LiquidGlassSettings settings;
   final VoidCallback onDismiss;
-  final VoidCallback? onSelectPressed;
-  final VoidCallback? onAddDocumentPressed;
+  final VoidCallback onSelectPressed;
+  final VoidCallback onAddDocumentPressed;
 
   @override
   Widget build(BuildContext context) {
-    final width = 262.0;
+    const width = 262.0;
 
     return Stack(
       children: [
@@ -117,9 +112,7 @@ class _MorePopoverOverlay extends StatelessWidget {
             child: GlassContainer(
               width: width,
               clipBehavior: Clip.antiAlias,
-              shape: const LiquidRoundedRectangle(
-                borderRadius: AppDimens.radius34,
-              ),
+              shape: const LiquidRoundedRectangle(borderRadius: AppDimens.radius34),
               settings: settings,
               useOwnLayer: true,
               child: Padding(
@@ -129,18 +122,18 @@ class _MorePopoverOverlay extends StatelessWidget {
                   children: [
                     _MorePopoverAction(
                       icon: Icons.check_circle_outline,
-                      title: 'home.menu.select'.tr(),
+                      title: context.localization.homeMenuSelect,
                       onTap: () {
                         onDismiss();
-                        onSelectPressed?.call();
+                        onSelectPressed();
                       },
                     ),
                     _MorePopoverAction(
                       icon: Icons.add_circle,
-                      title: 'home.menu.addDocument'.tr(),
+                      title: context.localization.homeMenuAddDocument,
                       onTap: () {
                         onDismiss();
-                        onAddDocumentPressed?.call();
+                        onAddDocumentPressed();
                       },
                     ),
                   ],
@@ -155,11 +148,7 @@ class _MorePopoverOverlay extends StatelessWidget {
 }
 
 class _MorePopoverAction extends StatelessWidget {
-  const _MorePopoverAction({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-  });
+  const _MorePopoverAction({required this.icon, required this.title, required this.onTap});
 
   final IconData icon;
   final String title;
@@ -179,18 +168,12 @@ class _MorePopoverAction extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: iconPadding),
-              child: Icon(
-                icon,
-                size: iconSize,
-                color: context.appColors.menuText,
-              ),
+              child: Icon(icon, size: iconSize, color: context.appColors.menuText),
             ),
             const SizedBox(width: AppDimens.padding8),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppDimens.padding10,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: AppDimens.padding10),
                 child: Text(
                   title,
                   maxLines: 1,
